@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
-	"strconv"
 	"sync"
 )
 
@@ -51,10 +50,10 @@ type carrier struct {
 
 func (c *carrier) carry() {
 	c.parent.wg.Add(1)
+	defer c.parent.wg.Done()
 	for {
 		c.parent.mu.RLock()
 		if c.parent.stopCPool {
-			c.parent.wg.Done()
 			c.parent.mu.RUnlock()
 			// runtime.Goexit()
 			return // TODO: which is better Goexit or return?
@@ -64,6 +63,9 @@ func (c *carrier) carry() {
 		req, err := c.getOneRequest()
 		if err != nil {
 			fmt.Printf("c.getOneRequest() failed, err=%v\n", err)
+			if err.Error() == "EOF" {
+				return
+			}
 			continue
 		}
 
@@ -78,7 +80,7 @@ func (c *carrier) getOneRequest() ([]byte, error) {
 		fmt.Printf("c.conn.Read(methondNameLenByte) failed, err=%v\n", err)
 		return nil, err
 	}
-	methodNameLen := binary.BigEndian.Uint32(methondNameLenByte)
+	methodNameLen := uint32(methondNameLenByte[0])
 
 	reqLenByte := make([]byte, 4, 4)
 	_, err = c.conn.Read(reqLenByte)
@@ -86,7 +88,7 @@ func (c *carrier) getOneRequest() ([]byte, error) {
 		fmt.Printf("c.conn.Read(reqLenByte) failed, err=%v\n", err)
 		return nil, err
 	}
-	reqLen := binary.BigEndian.Uint32(reqLenByte)
+	reqLen := binary.LittleEndian.Uint32(reqLenByte)
 
 	buf := make([]byte, 5+methodNameLen+reqLen, 5+methodNameLen+reqLen)
 	copy(buf[0:1], methondNameLenByte)
@@ -101,46 +103,42 @@ func (c *carrier) getOneRequest() ([]byte, error) {
 	return buf, nil
 }
 
-func StartServer(handler ServerToImplement, port int) error {
+func InitServer(handler ServerToImplement, port, workerCnt int) {
 	// register handlers
 	registerhandler(handler)
-	wPool = initWorkerPool(5)
 
-	lis, err := net.Listen("tcp", "0.0.0.0:"+strconv.Itoa(port))
-	if err != nil {
-		return err
+	// init worker pool
+	if workerCnt <= 0 || workerCnt > 40 {
+		workerCnt = 5
 	}
-	defer lis.Close()
+	wPool = initWorkerPool(workerCnt)
 
+	// init carrier pool
 	cPool = &carrierPool{}
+}
 
-	go func() {
-		for {
-			// for graceful shutdown
-			mu.RLock()
-			if stopServer {
-				mu.RUnlock()
-				lis.Close()
-				return
-			}
-			mu.RLock()
+func Serve(lis net.Listener) {
+	for {
+		// for graceful shutdown
+		mu.RLock()
+		if stopServer {
+			mu.RUnlock()
+			lis.Close()
+			return
+		}
+		mu.RLock()
 
-			conn, err := lis.Accept()
-			if err != nil {
-				fmt.Printf("lis.Accept failed, err = %v \n", err)
-				continue
-			}
-
-			c := &carrier{conn: conn, parent: cPool}
-			cPool.carriers = append(cPool.carriers, c)
-
-			go c.carry()
+		conn, err := lis.Accept()
+		if err != nil {
+			// fmt.Printf("lis.Accept failed, err = %v \n", err)
+			continue
 		}
 
-	}()
+		c := &carrier{conn: conn, parent: cPool}
+		cPool.carriers = append(cPool.carriers, c)
 
-	return nil
-
+		go c.carry()
+	}
 }
 
 func initWorkerPool(poolSize int) *workerPool {
@@ -197,11 +195,17 @@ func (w *worker) work() {
 			fmt.Printf("w.codec.DecodeReq(job.payload) failed, err = %v \n", err)
 			continue
 		}
-		hanlder := method2Handler[method]
 
+		// Actual Handling
+		hanlder := method2Handler[method]
 		rsp, err := hanlder(context.Background(), req)
 
-		encodedRsp, err := w.codec.EncodeRsp(rsp, &WrappedErr{Msg: err.Error()})
+		var errMsg string
+		if err != nil {
+			errMsg = err.Error()
+		}
+
+		encodedRsp, err := w.codec.EncodeRsp(rsp, &WrappedErr{Msg: errMsg})
 		if err != nil {
 			fmt.Printf("w.codec.EncodeRsp failed, err=%v\n", err)
 			continue

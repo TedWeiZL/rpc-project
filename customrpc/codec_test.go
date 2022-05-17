@@ -15,7 +15,7 @@ func TestJsonReqEncodeDecode(t *testing.T) {
 		t.Fatalf("encoder failed, err=%v", err)
 	}
 
-	_, reqOutInterface, err := j.DecodeReq(reqByte)
+	mName, reqOutInterface, err := j.DecodeReq(reqByte)
 	if err != nil {
 		t.Fatalf("decoder failed, err=%v", err)
 	}
@@ -27,6 +27,10 @@ func TestJsonReqEncodeDecode(t *testing.T) {
 
 	if reqOut.Msg != msg {
 		t.Fatalf("Msg is wrong")
+	}
+
+	if mName != methodName {
+		t.Fatalf("Method Name is wrong, expecting: %s, got: %s", methodName, mName)
 	}
 }
 

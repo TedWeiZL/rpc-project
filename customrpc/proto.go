@@ -5,7 +5,7 @@ import (
 	"reflect"
 )
 
-var method2Handler map[string]func(context.Context, interface{}) (interface{}, error)
+var method2Handler = make(map[string]func(context.Context, interface{}) (interface{}, error), 1)
 
 func registerhandler(handler ServerToImplement) {
 	// technique learnt from grpc official package: how to register a handler function

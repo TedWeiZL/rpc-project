@@ -55,6 +55,11 @@ func (c *client) invoke(ctx context.Context, method string, in interface{}, out 
 
 	wrappedErr, _ := c.DecodeRsp(outBytes, out)
 
+	// nil is not nil!
+	// https://yourbasic.org/golang/gotcha-why-nil-error-not-equal-nil/
+	if wrappedErr == nil {
+		return nil
+	}
 	return wrappedErr
 }
 
@@ -79,7 +84,7 @@ func InitClient(ip string, port int, connNum int) (ClientMethods, error) {
 	if port < 0 || connNum <= 0 {
 		return nil, errors.New("invalid port number or producerCnt")
 	}
-	addr := ip + strconv.Itoa(port)
+	addr := ip + ":" + strconv.Itoa(port)
 	c := &client{addr: addr,
 		conns: make(chan net.Conn, connNum),
 		codec: &jsonCodec{},
@@ -151,7 +156,7 @@ func receiveRsp(ctx context.Context, conn net.Conn) ([]byte, error) {
 			fmt.Printf("conn.Read(rspLenByte) failed, err=%v", err)
 			return
 		}
-		rspLen := binary.BigEndian.Uint32(rspLenByte)
+		rspLen := binary.LittleEndian.Uint32(rspLenByte)
 
 		errLenByte := make([]byte, 4, 4)
 		_, err = conn.Read(errLenByte)
@@ -160,7 +165,7 @@ func receiveRsp(ctx context.Context, conn net.Conn) ([]byte, error) {
 			fmt.Printf("conn.Read(errLenByte) failed, err=%v", err)
 			return
 		}
-		errLen := binary.BigEndian.Uint32(errLenByte)
+		errLen := binary.LittleEndian.Uint32(errLenByte)
 
 		buf := make([]byte, 8+rspLen+errLen, 8+rspLen+errLen)
 		copy(buf[0:4], rspLenByte)
