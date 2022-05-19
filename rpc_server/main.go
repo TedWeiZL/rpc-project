@@ -2,6 +2,8 @@ package main
 
 import (
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"rpc_project/clog"
 	rpc "rpc_project/customrpc"
 	"strconv"
@@ -9,6 +11,10 @@ import (
 
 func main() {
 	clog.InitLog("./server_log.txt")
+
+	go func() {
+		http.ListenAndServe("localhost:6060", nil)
+	}()
 
 	// init server
 	s := &server{}
