@@ -3,37 +3,25 @@ package customrpc
 import (
 	"context"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"net"
-	"strconv"
 	"time"
 )
 
-type client struct {
-	addr string
-	codec
-	conns chan net.Conn
+type Client struct {
+	Addr string
+	Codec
+	Conns chan net.Conn
 }
 
-func (c *client) TestConn(ctx context.Context, req *TestConnReq) (*TestConnRsp, error) {
-	rsp := TestConnRsp{}
-	err := c.invoke(ctx, "TestConn", &req, &rsp)
-	if err != nil {
-		return nil, err
-	}
-
-	return &rsp, nil
-}
-
-func (c *client) invoke(ctx context.Context, method string, in interface{}, out interface{}) error {
+func (c *Client) Invoke(ctx context.Context, method string, in interface{}, out interface{}) error {
 	conn, err := c.getConn(ctx)
 	if err != nil {
 		fmt.Printf("c.getConn(ctx) failed, err=%v \n", err)
 		return err
 	}
 
-	payload, err := c.codec.EncodeReq(method, in)
+	payload, err := c.Codec.EncodeReq(method, in)
 	if err != nil {
 		fmt.Printf("codec encode failed err=%v \n", err)
 		return err
@@ -63,10 +51,10 @@ func (c *client) invoke(ctx context.Context, method string, in interface{}, out 
 	return wrappedErr
 }
 
-func (c *client) getConn(ctx context.Context) (net.Conn, error) {
+func (c *Client) getConn(ctx context.Context) (net.Conn, error) {
 	for {
 		select {
-		case con := <-c.conns:
+		case con := <-c.Conns:
 			return con, nil
 		case <-ctx.Done():
 			return nil, ctx.Err()
@@ -76,30 +64,8 @@ func (c *client) getConn(ctx context.Context) (net.Conn, error) {
 	}
 }
 
-func (c *client) returnConn(ctx context.Context, conn net.Conn) {
-	c.conns <- conn
-}
-
-func InitClient(ip string, port int, connNum int) (ClientMethods, error) {
-	if port < 0 || connNum <= 0 {
-		return nil, errors.New("invalid port number or producerCnt")
-	}
-	addr := ip + ":" + strconv.Itoa(port)
-	c := &client{addr: addr,
-		conns: make(chan net.Conn, connNum),
-		codec: &jsonCodec{},
-	}
-
-	for i := 1; i <= connNum; i++ {
-		conn, err := net.Dial("tcp", addr)
-		if err != nil {
-			fmt.Printf("getClient Dial failed, err = %v", err)
-			return nil, err
-		}
-		c.conns <- conn
-	}
-
-	return c, nil
+func (c *Client) returnConn(ctx context.Context, conn net.Conn) {
+	c.Conns <- conn
 }
 
 func sendReq(ctx context.Context, conn net.Conn, payload []byte) error {

@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"rpc_project/clog"
-	rpc "rpc_project/customrpc"
+	"rpc_project/test_service"
 	"strconv"
 	"time"
 )
@@ -11,7 +11,7 @@ import (
 func main() {
 	clog.InitLog("./logs.txt")
 
-	clt, err := rpc.InitClient("127.0.0.1", 2345, 4)
+	clt, err := test_service.InitClient("127.0.0.1", 2345, 4)
 	if err != nil {
 		clog.Logger.Printf("rpc.InitClient failed, err=%v", err)
 		return
@@ -21,7 +21,7 @@ func main() {
 	defer cancel()
 
 	for i := 0; i < 10; i++ {
-		testConnRsp, err := clt.TestConn(ctx, &rpc.TestConnReq{Msg: "Hello, server. Message " + strconv.Itoa(i)})
+		testConnRsp, err := clt.TestConn(ctx, &test_service.TestConnReq{Msg: "Hello, server. Message " + strconv.Itoa(i)})
 		if err != nil {
 			clog.Logger.Printf("clt.TestConn failed, err=%v\n", err)
 			return

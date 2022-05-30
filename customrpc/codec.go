@@ -9,22 +9,17 @@ import (
 	"reflect"
 )
 
-type codec interface {
+type Codec interface {
 	EncodeReq(method string, req interface{}) ([]byte, error)
 	DecodeReq(in []byte) (string, interface{}, error)
 
 	EncodeRsp(rsp interface{}, err *WrappedErr) ([]byte, error)
 	DecodeRsp(in []byte, rsp interface{}) (*WrappedErr, error)
-	// One difficulty is, when server receives a req from client,
-	// how can the serve know which type of struct to Unmarshal the req?
-	// One solution is to store the (method, req type) in a map...
-	// TODO: Study a solution to it
-	// TODO: Include ctx in request messsages as well. Study how gRPC does this.
 }
 
-type jsonCodec struct{}
+type JSONCodec struct{}
 
-func (j *jsonCodec) EncodeReq(method string, v interface{}) ([]byte, error) {
+func (j *JSONCodec) EncodeReq(method string, v interface{}) ([]byte, error) {
 	buf := new(bytes.Buffer)
 
 	methodByte := []byte(method)
@@ -62,7 +57,7 @@ func (j *jsonCodec) EncodeReq(method string, v interface{}) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (j *jsonCodec) DecodeReq(in []byte) (string, interface{}, error) {
+func (j *JSONCodec) DecodeReq(in []byte) (string, interface{}, error) {
 	if len(in) < 6 {
 		return "", nil, errors.New("length of req must be at least 5 bytes")
 	}
@@ -72,7 +67,7 @@ func (j *jsonCodec) DecodeReq(in []byte) (string, interface{}, error) {
 	reqByte := in[5+methodLen:]
 
 	var req interface{}
-	if reqType, ok := method2ReqType[method]; !ok {
+	if reqType, ok := Method2ReqType[method]; !ok {
 		return "", nil, errors.New("DecodeReq Failed: Unknown method")
 	} else {
 		req = reflect.New(reqType).Interface() // req is a pointer
@@ -88,7 +83,7 @@ func (j *jsonCodec) DecodeReq(in []byte) (string, interface{}, error) {
 
 }
 
-func (j *jsonCodec) EncodeRsp(rsp interface{}, rappedE *WrappedErr) ([]byte, error) {
+func (j *JSONCodec) EncodeRsp(rsp interface{}, rappedE *WrappedErr) ([]byte, error) {
 	buf := new(bytes.Buffer)
 
 	rspByte, err := json.Marshal(rsp)
@@ -137,7 +132,7 @@ func (j *jsonCodec) EncodeRsp(rsp interface{}, rappedE *WrappedErr) ([]byte, err
 }
 
 // rsp must be a pointer type
-func (j *jsonCodec) DecodeRsp(in []byte, rsp interface{}) (*WrappedErr, error) {
+func (j *JSONCodec) DecodeRsp(in []byte, rsp interface{}) (*WrappedErr, error) {
 
 	rspLen := binary.LittleEndian.Uint32(in[0:4])
 

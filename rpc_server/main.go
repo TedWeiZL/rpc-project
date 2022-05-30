@@ -6,6 +6,7 @@ import (
 	_ "net/http/pprof"
 	"rpc_project/clog"
 	rpc "rpc_project/customrpc"
+	"rpc_project/test_service"
 	"strconv"
 )
 
@@ -18,7 +19,7 @@ func main() {
 
 	// init server
 	s := &server{}
-	rpc.InitServer(s, 2345, 5)
+	test_service.InitServer(s, 2345, 5)
 
 	// get listener
 	lis, err := net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(2345))

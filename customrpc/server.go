@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	wPool *workerPool
-	cPool *carrierPool
+	WPool *WorkerPool
+	CPool *CarrierPool
 
 	stopServer bool
 	mu         sync.RWMutex // protecting stopServer
@@ -23,7 +23,7 @@ type job struct {
 	conn    net.Conn
 }
 
-type carrierPool struct {
+type CarrierPool struct {
 	carriers []*carrier
 
 	// The following fields are for graceful shutdown
@@ -32,7 +32,7 @@ type carrierPool struct {
 	wg        sync.WaitGroup
 }
 
-func (cp *carrierPool) Stop() {
+func (cp *CarrierPool) Stop() {
 	cp.mu.Lock()
 	cp.stopCPool = true
 	cp.mu.Unlock()
@@ -45,7 +45,7 @@ func (cp *carrierPool) Stop() {
 type carrier struct {
 	conn net.Conn
 
-	parent *carrierPool
+	parent *CarrierPool
 }
 
 func (c *carrier) carry() {
@@ -103,20 +103,6 @@ func (c *carrier) getOneRequest() ([]byte, error) {
 	return buf, nil
 }
 
-func InitServer(handler ServerToImplement, port, workerCnt int) {
-	// register handlers
-	registerhandler(handler)
-
-	// init worker pool
-	if workerCnt <= 0 || workerCnt > 40 {
-		workerCnt = 5
-	}
-	wPool = initWorkerPool(workerCnt)
-
-	// init carrier pool
-	cPool = &carrierPool{}
-}
-
 func Serve(lis net.Listener) {
 	for {
 		// for graceful shutdown
@@ -134,21 +120,21 @@ func Serve(lis net.Listener) {
 			continue
 		}
 
-		c := &carrier{conn: conn, parent: cPool}
-		cPool.carriers = append(cPool.carriers, c)
+		c := &carrier{conn: conn, parent: CPool}
+		CPool.carriers = append(CPool.carriers, c)
 
 		go c.carry()
 	}
 }
 
-func initWorkerPool(poolSize int) *workerPool {
-	workerPool := workerPool{
+func InitWorkerPool(poolSize int) *WorkerPool {
+	workerPool := WorkerPool{
 		make([]*worker, 0, poolSize),
 	}
 	for i := 0; i <= poolSize-1; i++ {
 		w := &worker{
 			index: i,
-			codec: &jsonCodec{},
+			Codec: &JSONCodec{},
 		}
 		workerPool.workers = append(workerPool.workers, w)
 		go w.work()
@@ -169,16 +155,16 @@ func GracefulShutdownServer() {
 	stopServer = true
 	mu.Unlock()
 
-	cPool.Stop()
+	CPool.Stop()
 }
 
-type workerPool struct {
+type WorkerPool struct {
 	workers []*worker
 }
 
 type worker struct {
 	index int
-	codec
+	Codec
 }
 
 func (w *worker) work() {
@@ -190,14 +176,14 @@ func (w *worker) work() {
 			return
 		}
 
-		method, req, err := w.codec.DecodeReq(job.payload)
+		method, req, err := w.Codec.DecodeReq(job.payload)
 		if err != nil {
 			fmt.Printf("w.codec.DecodeReq(job.payload) failed, err = %v \n", err)
 			continue
 		}
 
 		// Actual Handling
-		hanlder := method2Handler[method]
+		hanlder := Method2Handler[method]
 		rsp, err := hanlder(context.Background(), req)
 
 		var errMsg string
@@ -205,7 +191,7 @@ func (w *worker) work() {
 			errMsg = err.Error()
 		}
 
-		encodedRsp, err := w.codec.EncodeRsp(rsp, &WrappedErr{Msg: errMsg})
+		encodedRsp, err := w.Codec.EncodeRsp(rsp, &WrappedErr{Msg: errMsg})
 		if err != nil {
 			fmt.Printf("w.codec.EncodeRsp failed, err=%v\n", err)
 			continue
