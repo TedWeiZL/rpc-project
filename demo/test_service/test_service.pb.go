@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
-	rpc "rpc_project/customrpc"
+	rpc "rpc_project/minirpc"
 	"strconv"
 )
 

@@ -1,11 +1,11 @@
-package customrpc
+package minirpc
 
 import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"log"
 	"reflect"
 )
 
@@ -19,13 +19,13 @@ type Codec interface {
 
 type JSONCodec struct{}
 
-func (j *JSONCodec) EncodeReq(method string, v interface{}) ([]byte, error) {
+func (j *JSONCodec) EncodeReq(method string, req interface{}) ([]byte, error) {
 	buf := new(bytes.Buffer)
 
 	methodByte := []byte(method)
-	vByte, err := json.Marshal(v)
+	vByte, err := json.Marshal(req)
 	if err != nil {
-		fmt.Printf("EncodeReq failed, err=%v", err)
+		log.Printf("EncodeReq failed, err=%v", err)
 		return nil, err
 	}
 
@@ -45,12 +45,12 @@ func (j *JSONCodec) EncodeReq(method string, v interface{}) ([]byte, error) {
 
 	_, err = buf.Write(methodByte)
 	if err != nil {
-		fmt.Printf("buf.Write(methodByte) failed, err=%v", err)
+		log.Printf("buf.Write(methodByte) failed, err=%v", err)
 		return nil, err
 	}
 	_, err = buf.Write(vByte)
 	if err != nil {
-		fmt.Printf("buf.Write(vByte) failed, err=%v", err)
+		log.Printf("buf.Write(vByte) failed, err=%v", err)
 		return nil, err
 	}
 
@@ -75,7 +75,7 @@ func (j *JSONCodec) DecodeReq(in []byte) (string, interface{}, error) {
 
 	err := json.Unmarshal(reqByte, req)
 	if err != nil {
-		fmt.Printf("DecodeReq json.Unmarshal failed, err=%v \n", err)
+		log.Printf("DecodeReq json.Unmarshal failed, err=%v \n", err)
 		return "", nil, err
 	}
 
@@ -88,13 +88,13 @@ func (j *JSONCodec) EncodeRsp(rsp interface{}, rappedE *WrappedErr) ([]byte, err
 
 	rspByte, err := json.Marshal(rsp)
 	if err != nil {
-		fmt.Printf("EncodeRsp json Marshal rspByte failed, err=%v \n", err)
+		log.Printf("EncodeRsp json Marshal rspByte failed, err=%v \n", err)
 		return nil, err
 	}
 
 	rappedEByte, err := json.Marshal(rappedE)
 	if err != nil {
-		fmt.Printf("EncodeRsp json Marshal rappedEByte failed, err=%v \n", err)
+		log.Printf("EncodeRsp json Marshal rappedEByte failed, err=%v \n", err)
 		return nil, err
 	}
 
@@ -117,13 +117,13 @@ func (j *JSONCodec) EncodeRsp(rsp interface{}, rappedE *WrappedErr) ([]byte, err
 
 	_, err = buf.Write(rspByte)
 	if err != nil {
-		fmt.Printf("EncodeRsp buf.Write rspByte failed, err=%v", err)
+		log.Printf("EncodeRsp buf.Write rspByte failed, err=%v", err)
 		return nil, err
 	}
 
 	_, err = buf.Write(rappedEByte)
 	if err != nil {
-		fmt.Printf("EncodeRsp buf.Write rappedEByte failed, err=%v", err)
+		log.Printf("EncodeRsp buf.Write rappedEByte failed, err=%v", err)
 		return nil, err
 	}
 
@@ -138,7 +138,7 @@ func (j *JSONCodec) DecodeRsp(in []byte, rsp interface{}) (*WrappedErr, error) {
 
 	err := json.Unmarshal(in[8:8+rspLen], rsp)
 	if err != nil {
-		fmt.Printf("json.Unmarshal(out[8:8+rspLen], v) failed, err=%v", err)
+		log.Printf("json.Unmarshal(out[8:8+rspLen], v) failed, err=%v", err)
 		return nil, err
 	}
 
@@ -150,7 +150,7 @@ func (j *JSONCodec) DecodeRsp(in []byte, rsp interface{}) (*WrappedErr, error) {
 
 	err = json.Unmarshal(in[8+rspLen:], &rappedE)
 	if err != nil {
-		fmt.Printf("json.Unmarshal(out[8+rspLen:], &rappedE) failed, err=%v", err)
+		log.Printf("json.Unmarshal(out[8+rspLen:], &rappedE) failed, err=%v", err)
 		return nil, err
 	}
 

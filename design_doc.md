@@ -42,7 +42,7 @@ Each gRPC call will have a unique request ID in the case
 
 - [x] replace binary.Write with a more efficient one. (avoid using reflection)
 
-- [] Remove logging logic in the customrpc package
+- [] Remove logging logic in the minirpc package
 
 - [x] Benchmark codec
 

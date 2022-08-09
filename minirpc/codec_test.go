@@ -1,4 +1,4 @@
-package customrpc
+package minirpc
 
 // import (
 // 	"rpc_project/test_service"

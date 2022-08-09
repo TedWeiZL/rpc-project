@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"rpc_project/clog"
-	"rpc_project/test_service"
+	"rpc_project/demo/test_service"
 	"strconv"
 	"time"
 )

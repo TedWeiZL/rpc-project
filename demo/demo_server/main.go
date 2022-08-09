@@ -5,8 +5,8 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"rpc_project/clog"
-	rpc "rpc_project/customrpc"
-	"rpc_project/test_service"
+	"rpc_project/demo/test_service"
+	rpc "rpc_project/minirpc"
 	"strconv"
 )
 

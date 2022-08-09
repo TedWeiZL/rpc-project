@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"rpc_project/test_service"
+	"rpc_project/demo/test_service"
 )
 
 type server struct{}
